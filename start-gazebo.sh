@@ -704,7 +704,7 @@ printf '[gazebo] Preparing image...\n'
 compose_base build gazebo
 repair_data_permissions
 
-image_ref="${GAZEBO_IMAGE:-gazebo-universal-runtim:local}"
+image_ref="${GAZEBO_IMAGE:-gazebo-universal-runtime:local}"
 docker image inspect "${image_ref}" >/dev/null || {
   printf 'Gazebo image was not found.\n' >&2
   exit 1

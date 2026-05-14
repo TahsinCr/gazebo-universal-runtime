@@ -1,9 +1,17 @@
+[![Contributors][contributors-shield]][contributors-url]
+[![Forks][forks-shield]][forks-url]
+[![Stargazers][stars-shield]][stars-url]
+[![Issues][issues-shield]][issues-url]
 [![MIT Lisansı][license-shield]][license-url]
-[![Docker][docker-shield]][docker-url]
-[![Gazebo][gazebo-shield]][gazebo-url]
-[![Ubuntu][ubuntu-shield]][ubuntu-url]
+[![LinkedIn][linkedin-shield]][linkedin-url]
+[![Docker Compose][docker-shield]][docker-url]
+[![Gazebo Sim][gazebo-shield]][gazebo-url]
+[![Gazebo Jetty][gazebo-jetty-shield]][gazebo-url]
+[![Gazebo Harmonic][gazebo-harmonic-shield]][gazebo-url]
+[![Gazebo Ionic][gazebo-ionic-shield]][gazebo-url]
+[![Ubuntu 24.04][ubuntu-shield]][ubuntu-url]
 
-[English](README.md) | [Türkçe](README_tr.md)
+[English][lang-en-url] | [Türkçe][lang-tr-url] | [Русский][lang-ru-url]
 
 <div align="center">
 
@@ -26,8 +34,8 @@ Tek image. Tek container. Varsayılan olarak tarayıcı arayüzü. Gerektiğinde
 Normal kullanım için tek zorunlu bağımlılık Docker’dır. Modern `docker compose` komutunu içeren güncel bir Docker kurulumu yeterlidir. Windows ve macOS üzerinde Docker Desktop Compose desteğini zaten içerir.
 
 ```bash
-git clone https://github.com/TahsinCr/gazebo-universal-runtim.git
-cd gazebo-universal-runtim
+git clone https://github.com/TahsinCr/gazebo-universal-runtime.git
+cd gazebo-universal-runtime
 cp .env.example .env
 ./start-gazebo.sh web
 ```
@@ -196,6 +204,8 @@ cp .env.example .env
 
 | Değişken | Varsayılan | Kullanım |
 | --- | --- | --- |
+| `GAZEBO_PACKAGE` | `gz-jetty` | Full Gazebo paketi. Desteklenen seçenekler: `gz-jetty`, `gz-harmonic`, `gz-ionic`. |
+| `UBUNTU_VERSION` | `24.04` | Önerilen Ubuntu base image sürümü. |
 | `GAZEBO_WORLD` | `/sim/worlds/default.sdf` | Başlangıç world dosyası. |
 | `GAZEBO_ARGS` | `-v 2` | `gz sim` komutuna gönderilen basit flagler. |
 | `WEB_PORT` | `6080` | Tarayıcı arayüz portu. |
@@ -205,9 +215,12 @@ cp .env.example .env
 | `GAZEBO_GPU_MODE` | `auto` | GPU yolu: `auto`, `nvidia`, `dxg`, `dri`, `software`. |
 | `GAZEBO_VERIFY_RENDERER` | `0` | OpenGL software rendering’e düşerse başlangıcı durdurur. |
 
+Önerilen varsayılan: `GAZEBO_PACKAGE=gz-jetty` ve `UBUNTU_VERSION=24.04`.
+
 Build-time seçenekler:
 
 ```bash
+GAZEBO_PACKAGE=gz-jetty docker compose build gazebo
 GAZEBO_PACKAGE=gz-harmonic docker compose build gazebo
 GAZEBO_PACKAGE=gz-ionic docker compose build gazebo
 UBUNTU_VERSION=24.04 docker compose build gazebo
@@ -307,7 +320,7 @@ Server-only modu, GUI-only modu, `ign` fallback veya projeye özel komut otomasy
 | Sorun | İlk kontrol |
 | --- | --- |
 | Web UI açılmıyor | `docker compose logs --tail=200 gazebo` |
-| World yüklenmiyor | `docker run --rm -v "$PWD/worlds:/sim/worlds:ro" --entrypoint gz gazebo-universal-runtim:local sdf -k /sim/worlds/default.sdf` |
+| World yüklenmiyor | `docker run --rm -v "$PWD/worlds:/sim/worlds:ro" --entrypoint gz gazebo-universal-runtime:local sdf -k /sim/worlds/default.sdf` |
 | NVIDIA kullanılmıyor | `docker run --rm --gpus all ubuntu nvidia-smi` |
 | Native UI açılmıyor | `DISPLAY`, `/tmp/.X11-unix`, `WAYLAND_DISPLAY` ve `XDG_RUNTIME_DIR` değerlerini kontrol et. |
 | Web modu yavaş | `GAZEBO_WEB_PROFILE=fast` dene veya `VNC_GEOMETRY` değerini düşür. |
@@ -322,15 +335,52 @@ docker compose ps
 ./stop-gazebo.sh
 ```
 
+## 📫 İletişim
+
+X: [@TahsinCrs][x-url]
+
+LinkedIn: [@TahsinCr][linkedin-url]
+
+Email: TahsinCrs@gmail.com
+
 ## Lisans
 
 MIT Lisansı ile dağıtılır. Ayrıntılar için [LICENSE](LICENSE) dosyasına bakın.
 
-[license-shield]: https://img.shields.io/badge/License-MIT-green.svg
-[license-url]: LICENSE
-[docker-shield]: https://img.shields.io/badge/Docker-Compose-blue.svg
+<!-- Images URL -->
+
+[contributors-shield]: https://img.shields.io/github/contributors/TahsinCr/gazebo-universal-runtime.svg?style=for-the-badge
+[forks-shield]: https://img.shields.io/github/forks/TahsinCr/gazebo-universal-runtime.svg?style=for-the-badge
+[stars-shield]: https://img.shields.io/github/stars/TahsinCr/gazebo-universal-runtime.svg?style=for-the-badge
+[issues-shield]: https://img.shields.io/github/issues/TahsinCr/gazebo-universal-runtime.svg?style=for-the-badge
+[license-shield]: https://img.shields.io/github/license/TahsinCr/gazebo-universal-runtime.svg?style=for-the-badge
+[linkedin-shield]: https://img.shields.io/badge/LinkedIn-TahsinCr-0A66C2.svg?style=for-the-badge&logo=linkedin&logoColor=white
+[docker-shield]: https://img.shields.io/badge/Docker-Compose-2496ED.svg?style=for-the-badge&logo=docker&logoColor=white
 [docker-url]: https://docs.docker.com/compose/
-[gazebo-shield]: https://img.shields.io/badge/Gazebo-Sim-orange.svg
+[gazebo-shield]: https://img.shields.io/badge/Gazebo-Sim-F58113.svg?style=for-the-badge
+[gazebo-jetty-shield]: https://img.shields.io/badge/Gazebo-gz--jetty-F58113.svg?style=for-the-badge
+[gazebo-harmonic-shield]: https://img.shields.io/badge/Gazebo-gz--harmonic-F58113.svg?style=for-the-badge
+[gazebo-ionic-shield]: https://img.shields.io/badge/Gazebo-gz--ionic-F58113.svg?style=for-the-badge
 [gazebo-url]: https://gazebosim.org/
-[ubuntu-shield]: https://img.shields.io/badge/Ubuntu-24.04-E95420.svg
+[ubuntu-shield]: https://img.shields.io/badge/Ubuntu-24.04-E95420.svg?style=for-the-badge&logo=ubuntu&logoColor=white
 [ubuntu-url]: https://ubuntu.com/
+
+<!-- Github Project URL -->
+
+[project-url]: https://github.com/TahsinCr/gazebo-universal-runtime
+[contributors-url]: https://github.com/TahsinCr/gazebo-universal-runtime/graphs/contributors
+[stars-url]: https://github.com/TahsinCr/gazebo-universal-runtime/stargazers
+[forks-url]: https://github.com/TahsinCr/gazebo-universal-runtime/network/members
+[issues-url]: https://github.com/TahsinCr/gazebo-universal-runtime/issues
+[license-url]: https://github.com/TahsinCr/gazebo-universal-runtime/blob/main/LICENSE
+
+<!-- Contacts URL -->
+
+[linkedin-url]: https://linkedin.com/in/TahsinCr
+[x-url]: https://twitter.com/TahsinCrs
+
+<!-- File URL -->
+
+[lang-tr-url]: https://github.com/TahsinCr/gazebo-universal-runtime/blob/main/README_tr.md
+[lang-en-url]: https://github.com/TahsinCr/gazebo-universal-runtime/blob/main/README.md
+[lang-ru-url]: https://github.com/TahsinCr/gazebo-universal-runtime/blob/main/README_ru.md

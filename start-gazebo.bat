@@ -38,7 +38,7 @@ if /I "%MODE%"=="ui" (
 
 if not "%WORLD%"=="" set "GAZEBO_WORLD=%WORLD%"
 
-if "%GAZEBO_IMAGE%"=="" set "GAZEBO_IMAGE=gazebo-universal-runtim:local"
+if "%GAZEBO_IMAGE%"=="" set "GAZEBO_IMAGE=gazebo-universal-runtime:local"
 if "%WEB_PORT%"=="" set "WEB_PORT=6080"
 if "%GAZEBO_WEB_PROFILE%"=="" set "GAZEBO_WEB_PROFILE=balanced"
 

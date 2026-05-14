@@ -1,9 +1,17 @@
+[![Contributors][contributors-shield]][contributors-url]
+[![Forks][forks-shield]][forks-url]
+[![Stargazers][stars-shield]][stars-url]
+[![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
-[![Docker][docker-shield]][docker-url]
-[![Gazebo][gazebo-shield]][gazebo-url]
-[![Ubuntu][ubuntu-shield]][ubuntu-url]
+[![LinkedIn][linkedin-shield]][linkedin-url]
+[![Docker Compose][docker-shield]][docker-url]
+[![Gazebo Sim][gazebo-shield]][gazebo-url]
+[![Gazebo Jetty][gazebo-jetty-shield]][gazebo-url]
+[![Gazebo Harmonic][gazebo-harmonic-shield]][gazebo-url]
+[![Gazebo Ionic][gazebo-ionic-shield]][gazebo-url]
+[![Ubuntu 24.04][ubuntu-shield]][ubuntu-url]
 
-[English](README.md) | [Türkçe](README_tr.md)
+[English][lang-en-url] | [Türkçe][lang-tr-url] | [Русский][lang-ru-url]
 
 <div align="center">
 
@@ -26,8 +34,8 @@ One image. One container. Browser UI by default. Native Linux UI when needed. Pr
 The only required dependency for normal use is Docker. Use a recent Docker installation with the modern `docker compose` command. Docker Desktop already includes Compose on Windows and macOS.
 
 ```bash
-git clone https://github.com/TahsinCr/gazebo-universal-runtim.git
-cd gazebo-universal-runtim
+git clone https://github.com/TahsinCr/gazebo-universal-runtime.git
+cd gazebo-universal-runtime
 cp .env.example .env
 ./start-gazebo.sh web
 ```
@@ -196,6 +204,8 @@ Most users only touch these values:
 
 | Variable | Default | Use |
 | --- | --- | --- |
+| `GAZEBO_PACKAGE` | `gz-jetty` | Full Gazebo package. Supported options: `gz-jetty`, `gz-harmonic`, `gz-ionic`. |
+| `UBUNTU_VERSION` | `24.04` | Recommended Ubuntu base image version. |
 | `GAZEBO_WORLD` | `/sim/worlds/default.sdf` | Startup world. |
 | `GAZEBO_ARGS` | `-v 2` | Simple flags passed to `gz sim`. |
 | `WEB_PORT` | `6080` | Browser UI port. |
@@ -205,9 +215,12 @@ Most users only touch these values:
 | `GAZEBO_GPU_MODE` | `auto` | GPU path: `auto`, `nvidia`, `dxg`, `dri`, or `software`. |
 | `GAZEBO_VERIFY_RENDERER` | `0` | Fail startup if OpenGL falls back to software rendering. |
 
+Recommended default: `GAZEBO_PACKAGE=gz-jetty` with `UBUNTU_VERSION=24.04`.
+
 Build-time options:
 
 ```bash
+GAZEBO_PACKAGE=gz-jetty docker compose build gazebo
 GAZEBO_PACKAGE=gz-harmonic docker compose build gazebo
 GAZEBO_PACKAGE=gz-ionic docker compose build gazebo
 UBUNTU_VERSION=24.04 docker compose build gazebo
@@ -307,7 +320,7 @@ There is no server-only mode, GUI-only mode, `ign` fallback, or project-specific
 | Problem | First check |
 | --- | --- |
 | Web UI does not open | `docker compose logs --tail=200 gazebo` |
-| World fails to load | `docker run --rm -v "$PWD/worlds:/sim/worlds:ro" --entrypoint gz gazebo-universal-runtim:local sdf -k /sim/worlds/default.sdf` |
+| World fails to load | `docker run --rm -v "$PWD/worlds:/sim/worlds:ro" --entrypoint gz gazebo-universal-runtime:local sdf -k /sim/worlds/default.sdf` |
 | NVIDIA is not used | `docker run --rm --gpus all ubuntu nvidia-smi` |
 | Native UI does not open | Check `DISPLAY`, `/tmp/.X11-unix`, `WAYLAND_DISPLAY`, and `XDG_RUNTIME_DIR`. |
 | Web mode feels slow | Try `GAZEBO_WEB_PROFILE=fast` or lower `VNC_GEOMETRY`. |
@@ -323,15 +336,52 @@ docker compose ps
 ```
 
 
+## 📫 Contact
+
+X: [@TahsinCrs][x-url]
+
+LinkedIn: [@TahsinCr][linkedin-url]
+
+Email: TahsinCrs@gmail.com
+
 ## License
 
 Distributed under the MIT License. See [LICENSE](LICENSE).
 
-[license-shield]: https://img.shields.io/badge/License-MIT-green.svg
-[license-url]: LICENSE
-[docker-shield]: https://img.shields.io/badge/Docker-Compose-blue.svg
+<!-- Images URL -->
+
+[contributors-shield]: https://img.shields.io/github/contributors/TahsinCr/gazebo-universal-runtime.svg?style=for-the-badge
+[forks-shield]: https://img.shields.io/github/forks/TahsinCr/gazebo-universal-runtime.svg?style=for-the-badge
+[stars-shield]: https://img.shields.io/github/stars/TahsinCr/gazebo-universal-runtime.svg?style=for-the-badge
+[issues-shield]: https://img.shields.io/github/issues/TahsinCr/gazebo-universal-runtime.svg?style=for-the-badge
+[license-shield]: https://img.shields.io/github/license/TahsinCr/gazebo-universal-runtime.svg?style=for-the-badge
+[linkedin-shield]: https://img.shields.io/badge/LinkedIn-TahsinCr-0A66C2.svg?style=for-the-badge&logo=linkedin&logoColor=white
+[docker-shield]: https://img.shields.io/badge/Docker-Compose-2496ED.svg?style=for-the-badge&logo=docker&logoColor=white
 [docker-url]: https://docs.docker.com/compose/
-[gazebo-shield]: https://img.shields.io/badge/Gazebo-Sim-orange.svg
+[gazebo-shield]: https://img.shields.io/badge/Gazebo-Sim-F58113.svg?style=for-the-badge
+[gazebo-jetty-shield]: https://img.shields.io/badge/Gazebo-gz--jetty-F58113.svg?style=for-the-badge
+[gazebo-harmonic-shield]: https://img.shields.io/badge/Gazebo-gz--harmonic-F58113.svg?style=for-the-badge
+[gazebo-ionic-shield]: https://img.shields.io/badge/Gazebo-gz--ionic-F58113.svg?style=for-the-badge
 [gazebo-url]: https://gazebosim.org/
-[ubuntu-shield]: https://img.shields.io/badge/Ubuntu-24.04-E95420.svg
+[ubuntu-shield]: https://img.shields.io/badge/Ubuntu-24.04-E95420.svg?style=for-the-badge&logo=ubuntu&logoColor=white
 [ubuntu-url]: https://ubuntu.com/
+
+<!-- Github Project URL -->
+
+[project-url]: https://github.com/TahsinCr/gazebo-universal-runtime
+[contributors-url]: https://github.com/TahsinCr/gazebo-universal-runtime/graphs/contributors
+[stars-url]: https://github.com/TahsinCr/gazebo-universal-runtime/stargazers
+[forks-url]: https://github.com/TahsinCr/gazebo-universal-runtime/network/members
+[issues-url]: https://github.com/TahsinCr/gazebo-universal-runtime/issues
+[license-url]: https://github.com/TahsinCr/gazebo-universal-runtime/blob/main/LICENSE
+
+<!-- Contacts URL -->
+
+[linkedin-url]: https://linkedin.com/in/TahsinCr
+[x-url]: https://twitter.com/TahsinCrs
+
+<!-- File URL -->
+
+[lang-tr-url]: https://github.com/TahsinCr/gazebo-universal-runtime/blob/main/README_tr.md
+[lang-en-url]: https://github.com/TahsinCr/gazebo-universal-runtime/blob/main/README.md
+[lang-ru-url]: https://github.com/TahsinCr/gazebo-universal-runtime/blob/main/README_ru.md

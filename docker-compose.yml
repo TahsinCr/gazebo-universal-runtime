@@ -32,7 +32,7 @@ x-gazebo-volumes: &gazebo-volumes
 
 services:
   gazebo:
-    image: "${GAZEBO_IMAGE:-gazebo-universal-runtim:local}"
+    image: "${GAZEBO_IMAGE:-gazebo-universal-runtime:local}"
     build: *gazebo-build
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     environment:
@@ -57,7 +57,7 @@ services:
 
   gazebo-ui:
     profiles: ["ui"]
-    image: "${GAZEBO_IMAGE:-gazebo-universal-runtim:local}"
+    image: "${GAZEBO_IMAGE:-gazebo-universal-runtime:local}"
     build: *gazebo-build
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     environment:
