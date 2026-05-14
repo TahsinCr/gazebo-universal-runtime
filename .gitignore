@@ -1,0 +1,7 @@
+.env
+.gazebo/
+
+data/*
+!data/.gitkeep
+
+*.log

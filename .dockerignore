@@ -1,0 +1,14 @@
+.git
+.gitignore
+
+.env
+.env.*
+!.env.example
+
+data/
+worlds/
+models/
+plugins/
+.gazebo/
+
+*.log

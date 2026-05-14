@@ -1,0 +1,81 @@
+x-gazebo-build: &gazebo-build
+  context: ./
+  dockerfile: gz.dockerfile
+  args:
+    UBUNTU_VERSION: "${UBUNTU_VERSION:-24.04}"
+    GAZEBO_PACKAGE: "${GAZEBO_PACKAGE:-gz-jetty}"
+    GAZEBO_APT_REPOSITORY: "${GAZEBO_APT_REPOSITORY:-https://packages.osrfoundation.org/gazebo/ubuntu-stable}"
+
+x-gazebo-environment: &gazebo-environment
+  GAZEBO_ARGS: "${GAZEBO_ARGS:--v 2}"
+  GAZEBO_WORLD: "${GAZEBO_WORLD:-/sim/worlds/default.sdf}"
+  GAZEBO_QUICK_START: "${GAZEBO_QUICK_START:-0}"
+  GAZEBO_REQUIRE_GPU: "${GAZEBO_REQUIRE_GPU:-0}"
+  GAZEBO_VERIFY_RENDERER: "${GAZEBO_VERIFY_RENDERER:-0}"
+  GZ_PARTITION: "${GZ_PARTITION:-gazebo}"
+  GZ_SIM_RESOURCE_PATH: "${GZ_SIM_RESOURCE_PATH:-/sim/worlds:/sim/models}"
+  GZ_SIM_SYSTEM_PLUGIN_PATH: "${GZ_SIM_SYSTEM_PLUGIN_PATH:-/sim/plugins}"
+  GZ_GUI_PLUGIN_PATH: "${GZ_GUI_PLUGIN_PATH:-/sim/plugins}"
+  GZ_GUI_RESOURCE_PATH: "${GZ_GUI_RESOURCE_PATH:-/sim/worlds:/sim/models}"
+  GAZEBO_WEB_GUI_TEMPLATE: "${GAZEBO_WEB_GUI_TEMPLATE:-/sim/gz-web-gui.config}"
+  HOME: "/data"
+  LIBGL_ALWAYS_SOFTWARE: "${LIBGL_ALWAYS_SOFTWARE:-0}"
+  QSG_RHI_BACKEND: "${QSG_RHI_BACKEND:-opengl}"
+
+x-gazebo-volumes: &gazebo-volumes
+  - ./worlds:/sim/worlds:ro
+  - ./models:/sim/models:ro
+  - ./plugins:/sim/plugins:ro
+  - ./gz-web-gui.config:/sim/gz-web-gui.config:ro
+  - ./index.html:/usr/share/novnc/index.html:ro
+  - ./data:/data
+
+services:
+  gazebo:
+    image: "${GAZEBO_IMAGE:-gazebo-universal-runtim:local}"
+    build: *gazebo-build
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    environment:
+      <<: *gazebo-environment
+      GAZEBO_DISPLAY_BACKEND: "web"
+      WEB_LISTEN_ADDRESS: "${WEB_LISTEN_ADDRESS:-0.0.0.0}"
+      WEB_PORT: "${WEB_PORT:-6080}"
+      VNC_LISTEN_ADDRESS: "127.0.0.1"
+      VNC_PORT: "${VNC_PORT:-5900}"
+      VNC_DISPLAY: "${VNC_DISPLAY:-:1}"
+      VNC_GEOMETRY: "${VNC_GEOMETRY:-1920x1080}"
+      VNC_DEPTH: "${VNC_DEPTH:-24}"
+      VNC_PASSWORD: "${VNC_PASSWORD:-}"
+      VNC_FRAME_RATE: "${VNC_FRAME_RATE:-60}"
+      VNC_COMPARE_FB: "${VNC_COMPARE_FB:-2}"
+      VNC_ZLIB_LEVEL: "${VNC_ZLIB_LEVEL:-1}"
+      VNC_PIXEL_FORMAT: "${VNC_PIXEL_FORMAT:-rgb888}"
+    ports:
+      - "${WEB_BIND_ADDRESS:-127.0.0.1}:${WEB_PORT:-6080}:${WEB_PORT:-6080}"
+    volumes: *gazebo-volumes
+    restart: "no"
+
+  gazebo-ui:
+    profiles: ["ui"]
+    image: "${GAZEBO_IMAGE:-gazebo-universal-runtim:local}"
+    build: *gazebo-build
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    environment:
+      <<: *gazebo-environment
+      GAZEBO_DISPLAY_BACKEND: "${GAZEBO_DISPLAY_BACKEND:-x11}"
+      DISPLAY: "${DISPLAY:-}"
+      WAYLAND_DISPLAY: "${WAYLAND_DISPLAY:-wayland-0}"
+      XDG_RUNTIME_DIR: "${XDG_RUNTIME_DIR:-/run/user/1000}"
+      XAUTHORITY: "${XAUTHORITY:-/tmp/.docker.xauth}"
+      QT_X11_NO_MITSHM: "1"
+      QT_WAYLAND_DISABLE_WINDOWDECORATION: "1"
+    network_mode: "host"
+    volumes:
+      - ./worlds:/sim/worlds:ro
+      - ./models:/sim/models:ro
+      - ./plugins:/sim/plugins:ro
+      - ./data:/data
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTHORITY:-/dev/null}:${XAUTHORITY:-/tmp/.docker.xauth}:ro
+      - ${XDG_RUNTIME_DIR:-/run/user/1000}:${XDG_RUNTIME_DIR:-/run/user/1000}:rw
+    restart: "no"
