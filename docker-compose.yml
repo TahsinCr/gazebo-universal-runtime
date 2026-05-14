@@ -1,3 +1,5 @@
+name: "${COMPOSE_PROJECT_NAME:-gazebo-universal-runtime}"
+
 x-gazebo-build: &gazebo-build
   context: ./
   dockerfile: gz.dockerfile
