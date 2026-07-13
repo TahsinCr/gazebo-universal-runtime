@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file.
 
+## [v1.1] - 2026-07-13
+
+### Fixed
+
+- Isolated Harmonic, Ionic, and Jetty into matching Sim / GUI / Rendering ABI families and forced the selected Sim major at runtime.
+- Added image-package guards, version-specific renderer paths and caches, and 3D View readiness health checks to prevent blank central world panels.
+- Installed the Qt 5 / Qt 6 SVG and Wayland runtime packages required by each collection and restored the missing Ionic SDF CLI diagnostic.
+
+### Changed
+
+- Made the low-latency web profile the default with a 1600x900 framebuffer, minimal VNC compression, faster noVNC pointer updates, fixed remote sizing, and Mesa threading.
+- Reported Xvnc web rendering as software accurately and kept native Linux UI as the hardware-accelerated low-latency path.
+
 ## [v1.0] - 2026-05-14
 
 ### Added
@@ -22,4 +35,5 @@ All notable changes to this project are documented in this file.
 - Added English, Turkish, and Russian README files with usage paths, platform notes, configuration details, troubleshooting, and contact links.
 - Added MIT License metadata and GitHub badges for repository status, Docker Compose, Gazebo Sim versions, and Ubuntu 24.04.
 
+[v1.1]: https://github.com/TahsinCr/gazebo-universal-runtime/compare/v1.0...v1.1
 [v1.0]: https://github.com/TahsinCr/gazebo-universal-runtime/releases/tag/v1.0

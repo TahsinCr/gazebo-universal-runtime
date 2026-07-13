@@ -6,6 +6,87 @@ die() {
   exit 1
 }
 
+load_runtime_release() {
+  local release_file="/usr/local/share/gazebo/runtime-release"
+  local existing_render_path="${GZ_RENDERING_PLUGIN_PATH:-}"
+  local render_plugin
+  local render_plugin_dir
+
+  [[ -r "${release_file}" ]] || die "Runtime release metadata is missing: ${release_file}"
+
+  # This file is generated inside the image and contains only fixed key/value
+  # pairs describing the Gazebo collection installed in that image.
+  # shellcheck disable=SC1090
+  source "${release_file}"
+
+  case "${IMAGE_GAZEBO_PACKAGE:-}" in
+    gz-harmonic | gz-ionic | gz-jetty)
+      ;;
+    *)
+      die "Unsupported image Gazebo package: ${IMAGE_GAZEBO_PACKAGE:-unknown}"
+      ;;
+  esac
+
+  if [[ -n "${GAZEBO_EXPECTED_PACKAGE:-}" && "${GAZEBO_EXPECTED_PACKAGE}" != "${IMAGE_GAZEBO_PACKAGE}" ]]; then
+    die "Image/package mismatch: image contains ${IMAGE_GAZEBO_PACKAGE}, but ${GAZEBO_EXPECTED_PACKAGE} was requested. Rebuild the image."
+  fi
+
+  render_plugin="$(find /usr/lib -path "*/gz-rendering-${GZ_RENDERING_MAJOR}/engine-plugins/libgz-rendering-ogre2.so" -print -quit)"
+  [[ -r "${render_plugin}" ]] || die "Gazebo Rendering ${GZ_RENDERING_MAJOR} Ogre2 plugin was not found."
+  render_plugin_dir="$(dirname "${render_plugin}")"
+
+  # Debian packages may install several Gazebo majors side-by-side. The
+  # unversioned library symlink then points to the newest one, which makes an
+  # older Sim load an incompatible renderer and leaves the 3D panel blank.
+  export GZ_RENDERING_PLUGIN_PATH="${render_plugin_dir}${existing_render_path:+:${existing_render_path}}"
+  export GAZEBO_PACKAGE="${IMAGE_GAZEBO_PACKAGE}"
+  export XDG_CACHE_HOME="${XDG_CACHE_HOME:-/data/.cache/${IMAGE_GAZEBO_PACKAGE}}"
+
+  mkdir -p "${XDG_CACHE_HOME}"
+
+  printf '[gazebo] release: %s (sim=%s gui=%s rendering=%s)\n' \
+    "${IMAGE_GAZEBO_PACKAGE}" "${GZ_SIM_MAJOR}" "${GZ_GUI_MAJOR}" "${GZ_RENDERING_MAJOR}"
+  printf '[gazebo] rendering plugin path: %s\n' "${render_plugin_dir}"
+}
+
+healthcheck() {
+  local gazebo_log="/data/logs/gazebo.log"
+  local loaded_libraries=""
+  local release_file="/usr/local/share/gazebo/runtime-release"
+
+  pgrep -f 'gz([ -]sim| sim)' >/dev/null 2>&1 || return 1
+
+  if [[ -r "${gazebo_log}" ]] && grep -qiE \
+    'Found no render engine plugins|Failed to load plugin \[gz-rendering|Unable to load the rendering engine|corrupted size|Segmentation fault|Aborted' \
+    "${gazebo_log}"; then
+    return 1
+  fi
+
+  if [[ "${GAZEBO_REQUIRE_3D_VIEW:-1}" == "1" && "${GAZEBO_QUICK_START:-0}" != "1" ]]; then
+    if [[ ! -r "${gazebo_log}" ]] \
+      || ! grep -q 'Added plugin .*3D View' "${gazebo_log}" \
+      || ! grep -q 'Loaded plugin .*MinimalScene' "${gazebo_log}"; then
+      [[ -r "${release_file}" ]] || return 1
+      # shellcheck disable=SC1090
+      source "${release_file}"
+      loaded_libraries="$(grep -hE 'libMinimalScene\.so|libgz-rendering([0-9]+)?-ogre2\.so' /proc/[0-9]*/maps 2>/dev/null || true)"
+      grep -q "/gz-gui-${GZ_GUI_MAJOR}/plugins/libMinimalScene.so" <<< "${loaded_libraries}" || return 1
+      if ! grep -q "/gz-rendering-${GZ_RENDERING_MAJOR}/engine-plugins/libgz-rendering${GZ_RENDERING_MAJOR}-ogre2.so" \
+        <<< "${loaded_libraries}"; then
+        grep -q "/libgz-rendering-ogre2.so.${GZ_RENDERING_MAJOR}" <<< "${loaded_libraries}" || return 1
+      fi
+    fi
+  fi
+
+  case "${GAZEBO_DISPLAY_BACKEND:-web}" in
+    web | novnc)
+      pgrep -x Xtigervnc >/dev/null 2>&1 || return 1
+      pgrep -f 'websockify' >/dev/null 2>&1 || return 1
+      curl -fsS --max-time 1 "http://127.0.0.1:${WEB_PORT:-6080}/" >/dev/null 2>&1 || return 1
+      ;;
+  esac
+}
+
 split_gazebo_args() {
   GAZEBO_EXTRA_ARGS=()
 
@@ -133,8 +214,9 @@ start_xvnc() {
     -depth "${VNC_DEPTH}"
     -rfbport "${VNC_PORT}"
     -FrameRate "${VNC_FRAME_RATE:-60}"
-    -CompareFB "${VNC_COMPARE_FB:-2}"
-    -ZlibLevel "${VNC_ZLIB_LEVEL:-1}"
+    -CompareFB "${VNC_COMPARE_FB:-0}"
+    -ZlibLevel "${VNC_ZLIB_LEVEL:-0}"
+    -ImprovedHextile="${VNC_IMPROVED_HEXTILE:-0}"
     -AlwaysShared=1
     -DisconnectClients=0
     -AcceptKeyEvents=1
@@ -179,6 +261,7 @@ start_websockify() {
 
   websockify \
     --web="${web_dir}" \
+    --heartbeat="${WEB_HEARTBEAT:-30}" \
     "${WEB_LISTEN_ADDRESS}:${WEB_PORT}" \
     "${VNC_LISTEN_ADDRESS}:${VNC_PORT}" \
     >/data/logs/websockify.log 2>&1 &
@@ -188,7 +271,7 @@ start_websockify() {
 }
 
 prepare_web_gui_config() {
-  local config_path="/data/.gz/sim/web-gui.config"
+  local config_path="/data/.gz/sim/${GZ_SIM_MAJOR}/web-gui.config"
   local project_template_path="${GAZEBO_WEB_GUI_TEMPLATE:-/sim/gz-web-gui.config}"
   local template_path="/usr/local/share/gazebo/web-gui.config"
 
@@ -211,7 +294,10 @@ prepare_web_gui_config() {
 prepare_web() {
   export DISPLAY="${VNC_DISPLAY:-:1}"
   export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-xcb}"
+  export QT_X11_NO_MITSHM="${GAZEBO_WEB_DISABLE_MITSHM:-0}"
   export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp/runtime-gazebo}"
+  export MESA_GLTHREAD="${MESA_GLTHREAD:-true}"
+  export vblank_mode="${vblank_mode:-0}"
 
   mkdir -p /data/.gz /data/logs "${XDG_RUNTIME_DIR}"
   chmod 700 "${XDG_RUNTIME_DIR}" 2>/dev/null || true
@@ -264,7 +350,7 @@ report_renderer() {
 
   printf '[gazebo] renderer: %s\n' "${renderer}"
 
-  if [[ "${GAZEBO_VERIFY_RENDERER:-0}" == "1" && "${renderer}" =~ (llvmpipe|softpipe|swrast|Software|software) ]]; then
+  if [[ ("${GAZEBO_VERIFY_RENDERER:-0}" == "1" || "${GAZEBO_REQUIRE_GPU:-0}" == "1") && "${renderer}" =~ (llvmpipe|softpipe|swrast|Software|software) ]]; then
     die "GPU renderer verification failed; OpenGL is using software rendering (${renderer})."
   fi
 }
@@ -296,15 +382,26 @@ prepare_display() {
   esac
 }
 
+if [[ "${1:-}" == "--healthcheck" ]]; then
+  healthcheck
+  exit $?
+fi
+
 command -v gz >/dev/null 2>&1 || die "Gazebo CLI 'gz' not found. Use a full Gazebo package such as gz-jetty."
 
 mkdir -p /data/.gz /data/logs
 export LD_LIBRARY_PATH="${GZ_SIM_SYSTEM_PLUGIN_PATH:-/sim/plugins}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
 
+load_runtime_release
 require_gpu_device
 prepare_display
 report_renderer
 split_gazebo_args
 build_world_args "$@"
 
-exec gz sim "${GAZEBO_EXTRA_ARGS[@]}" "${GAZEBO_WORLD_ARGS[@]}"
+# Keep a machine-readable startup log for the healthcheck while preserving
+# normal `docker logs` output. Truncation prevents a previous successful run
+# from making a broken restart look healthy.
+: > /data/logs/gazebo.log
+exec > >(tee -a /data/logs/gazebo.log) 2>&1
+exec gz sim --force-version "${GZ_SIM_MAJOR}" "${GAZEBO_EXTRA_ARGS[@]}" "${GAZEBO_WORLD_ARGS[@]}"

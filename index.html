@@ -320,7 +320,7 @@
         <div id="status" class="status"><span class="dot"></span><span>Connecting</span></div>
         <div class="segmented" aria-label="Stream profile">
           <button data-profile="fast" type="button">Fast</button>
-          <button data-profile="balanced" class="active" type="button">Balanced</button>
+          <button data-profile="balanced" type="button">Balanced</button>
           <button data-profile="quality" type="button">Quality</button>
         </div>
         <button id="fit" type="button">Fit</button>
@@ -332,7 +332,7 @@
     </header>
 
     <div id="hint" class="hint">
-      Full-quality local stream is active. For the smoothest 3D editing path, use native UI when your host supports it.
+      Connecting to the low-latency local stream. For direct hardware OpenGL, use native UI on Linux.
     </div>
   </main>
 
@@ -351,15 +351,15 @@
     const pinButton = document.getElementById('pin');
     const profileButtons = [...document.querySelectorAll('[data-profile]')];
     const streamProfiles = {
-      fast: { label: 'Fast', quality: 6, compression: 2 },
-      balanced: { label: 'Balanced', quality: 8, compression: 2 },
-      quality: { label: 'Quality', quality: 9, compression: 1 },
+      fast: { label: 'Fast', quality: 6, compression: 0 },
+      balanced: { label: 'Balanced', quality: 8, compression: 1 },
+      quality: { label: 'Quality', quality: 9, compression: 2 },
     };
     let rfb;
     let reconnectTimer;
     let toolbarTimer;
     let scaleViewport = query('scale', 'false') === 'true';
-    let streamProfile = normalizeProfile(query('profile', 'balanced'));
+    let streamProfile = normalizeProfile(query('profile', 'fast'));
 
     function query(name, fallback = '') {
       const params = new URLSearchParams(`${window.location.search}${window.location.hash.replace('#', '&')}`);
@@ -377,7 +377,7 @@
     }
 
     function normalizeProfile(profile) {
-      return Object.hasOwn(streamProfiles, profile) ? profile : 'balanced';
+      return Object.hasOwn(streamProfiles, profile) ? profile : 'fast';
     }
 
     function streamSettings(useUrlOverrides = true) {
@@ -460,7 +460,7 @@
 
       rfb.focusOnClick = true;
       rfb.showDotCursor = true;
-      rfb.resizeSession = query('resize', 'true') !== 'false';
+      rfb.resizeSession = query('resize', 'false') !== 'false';
       applyStreamProfile(true);
       applyScale();
 

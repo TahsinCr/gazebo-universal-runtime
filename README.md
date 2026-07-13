@@ -36,7 +36,6 @@ The only required dependency for normal use is Docker. Use a recent Docker insta
 ```bash
 git clone https://github.com/TahsinCr/gazebo-universal-runtime.git
 cd gazebo-universal-runtime
-cp .env.example .env
 ./start-gazebo.sh web
 ```
 
@@ -55,14 +54,12 @@ Stop:
 Windows:
 
 ```bat
-copy .env.example .env
 start-gazebo.bat
 ```
 
 macOS:
 
 ```bash
-cp .env.example .env
 ./start-gazebo.sh web
 ```
 
@@ -126,7 +123,6 @@ GAZEBO_QUICK_START=1 ./start-gazebo.sh web
 
 ```text
 project/
-├── .env.example
 ├── docker-compose.yml
 ├── gz.dockerfile
 ├── gz-entrypoint.sh
@@ -194,10 +190,12 @@ GAZEBO_WEB_GUI_TEMPLATE=/sim/gz-web-gui.config
 
 ## Configuration
 
-Copy `.env.example` to `.env` and edit only what you need:
+Define only the values you need in an optional `.env` file. A low-latency starting point is:
 
-```bash
-cp .env.example .env
+```env
+GAZEBO_PACKAGE=gz-jetty
+GAZEBO_WEB_PROFILE=fast
+VNC_GEOMETRY=1600x900
 ```
 
 Most users only touch these values:
@@ -210,12 +208,23 @@ Most users only touch these values:
 | `GAZEBO_ARGS` | `-v 2` | Simple flags passed to `gz sim`. |
 | `WEB_PORT` | `6080` | Browser UI port. |
 | `WEB_BIND_ADDRESS` | `127.0.0.1` | Host bind address for web mode. |
-| `VNC_GEOMETRY` | `1920x1080` | Web-mode virtual desktop resolution. |
-| `GAZEBO_WEB_PROFILE` | `balanced` | Web stream profile: `fast`, `balanced`, or `quality`. |
+| `VNC_GEOMETRY` | `1600x900` | Web-mode virtual desktop resolution. |
+| `GAZEBO_WEB_PROFILE` | `fast` | Web stream profile: `fast`, `balanced`, or `quality`. |
 | `GAZEBO_GPU_MODE` | `auto` | GPU path: `auto`, `nvidia`, `dxg`, `dri`, or `software`. |
 | `GAZEBO_VERIFY_RENDERER` | `0` | Fail startup if OpenGL falls back to software rendering. |
+| `GAZEBO_REQUIRE_3D_VIEW` | `1` | Do not report healthy until `MinimalScene` and the central 3D View are ready. |
 
 Recommended default: `GAZEBO_PACKAGE=gz-jetty` with `UBUNTU_VERSION=24.04`.
+
+Each image contains exactly one ABI family:
+
+| Collection | Sim / GUI / Rendering | Qt |
+| --- | --- | --- |
+| Harmonic | 8 / 8 / 8 | Qt 5 |
+| Ionic | 9 / 9 / 9 | Qt 5 |
+| Jetty | 10 / 10 / 10 | Qt 6 |
+
+The launcher compares the image manifest with `GAZEBO_PACKAGE` and rejects stale or mismatched images. Rendering plugin paths and Qt caches are also isolated by collection, preventing cross-ABI loading that can open the window while leaving the central 3D panel blank.
 
 Build-time options:
 
@@ -235,6 +244,8 @@ Gazebo GUI -> TigerVNC -> websockify -> noVNC -> Browser
 ```
 
 It is the most portable mode, but it is still a streamed desktop. Even on the same machine, native Linux UI can feel smoother because web mode captures, encodes, transports, decodes, and paints frames in the browser.
+
+`fast` is now the default profile: a 1600x900 desktop, 60 FPS cap, minimal VNC compression, 4 ms noVNC pointer throttling, fixed remote resolution, and Mesa GL threading. `balanced` reduces network traffic; `quality` may trade more CPU latency for compression and image quality.
 
 Tune the web stream:
 
@@ -263,7 +274,7 @@ AMD / Intel DRI render node
 software fallback
 ```
 
-In native Linux UI modes, NVIDIA is preferred when Docker exposes a working NVIDIA runtime. In web mode, `auto` avoids forcing NVIDIA under VNC because some hosts cannot create a stable NVIDIA GLX context inside the virtual display. If your host supports it reliably, force it with `GAZEBO_GPU_MODE=nvidia`.
+In native Linux UI modes, NVIDIA is preferred when Docker exposes a working NVIDIA runtime. Xvnc in the current web pipeline cannot directly use the host GLX context, so web `auto` deliberately uses optimized software OpenGL. Use `./start-gazebo.sh ui` on Linux for hardware OpenGL and the lowest local input latency. Forced GPU mode now fails if the renderer remains software instead of claiming that a GPU is active.
 
 When a GPU path is found, `start-gazebo.sh` writes a local override file:
 
@@ -276,9 +287,8 @@ This file is machine-specific and ignored by git.
 Force a mode:
 
 ```bash
-GAZEBO_GPU_MODE=nvidia ./start-gazebo.sh web
+GAZEBO_GPU_MODE=nvidia ./start-gazebo.sh ui
 GAZEBO_GPU_MODE=dri ./start-gazebo.sh ui
-GAZEBO_GPU_MODE=dxg ./start-gazebo.sh web
 GAZEBO_GPU_MODE=software ./start-gazebo.sh web
 ```
 
@@ -307,10 +317,12 @@ GAZEBO_VERIFY_RENDERER=1 ./start-gazebo.sh ui
 Entrypoint behavior:
 
 ```text
+verify the image release manifest and Ogre2 ABI path
 prepare display backend
 prepare web GUI config when needed
 split simple GAZEBO_ARGS flags
-exec gz sim ${GAZEBO_ARGS} <world>
+run gz sim with the correct Sim major forced
+hold healthcheck until MinimalScene and 3D View are ready
 ```
 
 There is no server-only mode, GUI-only mode, `ign` fallback, or project-specific command automation.
@@ -320,6 +332,7 @@ There is no server-only mode, GUI-only mode, `ign` fallback, or project-specific
 | Problem | First check |
 | --- | --- |
 | Web UI does not open | `docker compose logs --tail=200 gazebo` |
+| UI opens but the central 3D panel is missing | Check container health and the `rendering plugin path`, `MinimalScene`, and `3D View` log lines; `./start-gazebo.sh web` rejects mismatched images automatically. |
 | World fails to load | `docker run --rm -v "$PWD/worlds:/sim/worlds:ro" --entrypoint gz gazebo-universal-runtime:local sdf -k /sim/worlds/default.sdf` |
 | NVIDIA is not used | `docker run --rm --gpus all ubuntu nvidia-smi` |
 | Native UI does not open | Check `DISPLAY`, `/tmp/.X11-unix`, `WAYLAND_DISPLAY`, and `XDG_RUNTIME_DIR`. |

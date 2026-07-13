@@ -11,5 +11,5 @@ if [[ -f .env ]]; then
 fi
 
 if command -v open >/dev/null 2>&1; then
-  open "http://localhost:${WEB_PORT:-${env_web_port:-6080}}/?profile=${GAZEBO_WEB_PROFILE:-${env_web_profile:-balanced}}"
+  open "http://localhost:${WEB_PORT:-${env_web_port:-6080}}/?profile=${GAZEBO_WEB_PROFILE:-${env_web_profile:-fast}}"
 fi

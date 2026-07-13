@@ -9,9 +9,12 @@ x-gazebo-build: &gazebo-build
     GAZEBO_APT_REPOSITORY: "${GAZEBO_APT_REPOSITORY:-https://packages.osrfoundation.org/gazebo/ubuntu-stable}"
 
 x-gazebo-environment: &gazebo-environment
+  GAZEBO_EXPECTED_PACKAGE: "${GAZEBO_PACKAGE:-gz-jetty}"
   GAZEBO_ARGS: "${GAZEBO_ARGS:--v 2}"
+  GAZEBO_GUI_CONFIG: "${GAZEBO_GUI_CONFIG:-}"
   GAZEBO_WORLD: "${GAZEBO_WORLD:-/sim/worlds/default.sdf}"
   GAZEBO_QUICK_START: "${GAZEBO_QUICK_START:-0}"
+  GAZEBO_REQUIRE_3D_VIEW: "${GAZEBO_REQUIRE_3D_VIEW:-1}"
   GAZEBO_REQUIRE_GPU: "${GAZEBO_REQUIRE_GPU:-0}"
   GAZEBO_VERIFY_RENDERER: "${GAZEBO_VERIFY_RENDERER:-0}"
   GZ_PARTITION: "${GZ_PARTITION:-gazebo}"
@@ -22,7 +25,9 @@ x-gazebo-environment: &gazebo-environment
   GAZEBO_WEB_GUI_TEMPLATE: "${GAZEBO_WEB_GUI_TEMPLATE:-/sim/gz-web-gui.config}"
   HOME: "/data"
   LIBGL_ALWAYS_SOFTWARE: "${LIBGL_ALWAYS_SOFTWARE:-0}"
+  MESA_GLTHREAD: "${MESA_GLTHREAD:-true}"
   QSG_RHI_BACKEND: "${QSG_RHI_BACKEND:-opengl}"
+  vblank_mode: "${vblank_mode:-0}"
 
 x-gazebo-volumes: &gazebo-volumes
   - ./worlds:/sim/worlds:ro
@@ -37,6 +42,7 @@ services:
     image: "${GAZEBO_IMAGE:-gazebo-universal-runtime:local}"
     build: *gazebo-build
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    shm_size: "${GAZEBO_SHM_SIZE:-512m}"
     environment:
       <<: *gazebo-environment
       GAZEBO_DISPLAY_BACKEND: "web"
@@ -45,26 +51,32 @@ services:
       VNC_LISTEN_ADDRESS: "127.0.0.1"
       VNC_PORT: "${VNC_PORT:-5900}"
       VNC_DISPLAY: "${VNC_DISPLAY:-:1}"
-      VNC_GEOMETRY: "${VNC_GEOMETRY:-1920x1080}"
+      VNC_GEOMETRY: "${VNC_GEOMETRY:-1600x900}"
       VNC_DEPTH: "${VNC_DEPTH:-24}"
       VNC_PASSWORD: "${VNC_PASSWORD:-}"
       VNC_FRAME_RATE: "${VNC_FRAME_RATE:-60}"
-      VNC_COMPARE_FB: "${VNC_COMPARE_FB:-2}"
-      VNC_ZLIB_LEVEL: "${VNC_ZLIB_LEVEL:-1}"
+      VNC_COMPARE_FB: "${VNC_COMPARE_FB:-0}"
+      VNC_ZLIB_LEVEL: "${VNC_ZLIB_LEVEL:-0}"
+      VNC_IMPROVED_HEXTILE: "${VNC_IMPROVED_HEXTILE:-0}"
       VNC_PIXEL_FORMAT: "${VNC_PIXEL_FORMAT:-rgb888}"
+      WEB_HEARTBEAT: "${WEB_HEARTBEAT:-30}"
+      QT_X11_NO_MITSHM: "0"
     ports:
       - "${WEB_BIND_ADDRESS:-127.0.0.1}:${WEB_PORT:-6080}:${WEB_PORT:-6080}"
     volumes: *gazebo-volumes
     restart: "no"
+    stop_grace_period: 15s
 
   gazebo-ui:
     profiles: ["ui"]
     image: "${GAZEBO_IMAGE:-gazebo-universal-runtime:local}"
     build: *gazebo-build
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    shm_size: "${GAZEBO_SHM_SIZE:-512m}"
     environment:
       <<: *gazebo-environment
       GAZEBO_DISPLAY_BACKEND: "${GAZEBO_DISPLAY_BACKEND:-x11}"
+      GAZEBO_WAYLAND_NATIVE: "${GAZEBO_WAYLAND_NATIVE:-0}"
       DISPLAY: "${DISPLAY:-}"
       WAYLAND_DISPLAY: "${WAYLAND_DISPLAY:-wayland-0}"
       XDG_RUNTIME_DIR: "${XDG_RUNTIME_DIR:-/run/user/1000}"
@@ -81,3 +93,4 @@ services:
       - ${XAUTHORITY:-/dev/null}:${XAUTHORITY:-/tmp/.docker.xauth}:ro
       - ${XDG_RUNTIME_DIR:-/run/user/1000}:${XDG_RUNTIME_DIR:-/run/user/1000}:rw
     restart: "no"
+    stop_grace_period: 15s

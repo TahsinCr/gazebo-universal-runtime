@@ -53,14 +53,15 @@ Modes:
   wayland  Wayland session mode; uses XWayland by default for Gazebo 3D stability
 
 GPU:
-  Auto by default: NVIDIA runtime > WSL DXG > AMD DRI > Intel DRI > software.
+  Native UI auto: NVIDIA runtime > WSL DXG > AMD DRI > Intel DRI > software.
+  Web auto: optimized software rendering because Xvnc cannot expose host GLX.
   Override with GAZEBO_GPU_MODE=nvidia|dxg|dri|software.
   NVIDIA cards require the Docker NVIDIA runtime; raw NVIDIA DRI is skipped
   unless GAZEBO_DRI_ALLOW_NVIDIA=1 is set explicitly.
   Force experimental native Qt Wayland with GAZEBO_WAYLAND_NATIVE=1.
 
 Web stream:
-  GAZEBO_WEB_PROFILE=balanced|fast|quality
+  GAZEBO_WEB_PROFILE=fast|balanced|quality
 
 World:
   Starts worlds/default.sdf from this project by default.
@@ -200,23 +201,26 @@ ensure_host_dirs() {
 }
 
 apply_web_profile() {
-  local profile="${GAZEBO_WEB_PROFILE:-balanced}"
+  local profile="${GAZEBO_WEB_PROFILE:-fast}"
 
   case "${profile}" in
     fast)
       export VNC_FRAME_RATE="${VNC_FRAME_RATE:-60}"
-      export VNC_COMPARE_FB="${VNC_COMPARE_FB:-2}"
-      export VNC_ZLIB_LEVEL="${VNC_ZLIB_LEVEL:-2}"
+      export VNC_COMPARE_FB="${VNC_COMPARE_FB:-0}"
+      export VNC_ZLIB_LEVEL="${VNC_ZLIB_LEVEL:-0}"
+      export VNC_IMPROVED_HEXTILE="${VNC_IMPROVED_HEXTILE:-0}"
       ;;
     balanced)
       export VNC_FRAME_RATE="${VNC_FRAME_RATE:-60}"
       export VNC_COMPARE_FB="${VNC_COMPARE_FB:-2}"
       export VNC_ZLIB_LEVEL="${VNC_ZLIB_LEVEL:-1}"
+      export VNC_IMPROVED_HEXTILE="${VNC_IMPROVED_HEXTILE:-0}"
       ;;
     quality)
       export VNC_FRAME_RATE="${VNC_FRAME_RATE:-60}"
       export VNC_COMPARE_FB="${VNC_COMPARE_FB:-2}"
-      export VNC_ZLIB_LEVEL="${VNC_ZLIB_LEVEL:-1}"
+      export VNC_ZLIB_LEVEL="${VNC_ZLIB_LEVEL:-3}"
+      export VNC_IMPROVED_HEXTILE="${VNC_IMPROVED_HEXTILE:-1}"
       ;;
     *)
       printf 'Invalid GAZEBO_WEB_PROFILE=%s. Use: balanced, fast, quality\n' "${profile}" >&2
@@ -228,7 +232,7 @@ apply_web_profile() {
 }
 
 web_url() {
-  printf 'http://localhost:%s/?profile=%s\n' "${WEB_PORT:-6080}" "${GAZEBO_WEB_PROFILE:-balanced}"
+  printf 'http://localhost:%s/?profile=%s\n' "${WEB_PORT:-6080}" "${GAZEBO_WEB_PROFILE:-fast}"
 }
 
 repair_data_permissions() {
@@ -522,6 +526,13 @@ select_gpu_mode() {
 
   case "${requested}" in
     auto)
+      if [[ "${mode:-}" == "web" ]]; then
+        export GAZEBO_REQUIRE_GPU=0
+        export LIBGL_ALWAYS_SOFTWARE=1
+        printf '[gazebo] GPU: web mode uses the optimized Xvnc software renderer; use native UI for hardware OpenGL.\n'
+        return
+      fi
+
       if host_has_nvidia && docker_nvidia_works "${image_id}"; then
         nvidia_available=1
       fi
@@ -628,6 +639,64 @@ print_renderer_note() {
   fi
 }
 
+verify_built_image() {
+  local image_ref="$1"
+  local requested_package="${GAZEBO_PACKAGE:-gz-jetty}"
+  local image_package
+
+  image_package="$(docker run --rm --entrypoint sh "${image_ref}" -c \
+    "awk -F= '\$1 == \"IMAGE_GAZEBO_PACKAGE\" {print \$2; exit}' /usr/local/share/gazebo/runtime-release" 2>/dev/null || true)"
+
+  if [[ "${image_package}" != "${requested_package}" ]]; then
+    printf '[gazebo] ERROR: built image package is %s, expected %s. Rebuild without stale custom Gazebo dependencies.\n' \
+      "${image_package:-unknown}" "${requested_package}" >&2
+    exit 1
+  fi
+
+  printf '[gazebo] Image verified: %s\n' "${image_package}"
+}
+
+validate_runtime_logs() {
+  local service="$1"
+  local logs=""
+
+  for _ in {1..8}; do
+    logs="$(compose_runtime logs --no-color --tail=400 "${service}" 2>&1 || true)"
+
+    if grep -qiE 'Found no render engine plugins|Failed to load plugin \[gz-rendering|Unable to load the rendering engine|corrupted size|Segmentation fault|Aborted' <<< "${logs}"; then
+      printf '[gazebo] ERROR: Gazebo rendering failed during startup.\n' >&2
+      printf '%s\n' "${logs}" | tail -120 >&2
+      return 1
+    fi
+
+    if grep -q 'Added plugin .*3D View' <<< "${logs}" && grep -q 'Loaded plugin .*MinimalScene' <<< "${logs}"; then
+      return 0
+    fi
+
+    sleep 0.25
+  done
+
+  # Compose's healthcheck has already verified the loaded 3D libraries. At
+  # lower Gazebo verbosity levels, successful plugin messages are suppressed.
+  return 0
+}
+
+start_and_validate() {
+  local service="$1"
+  shift
+
+  if ! compose_runtime "$@" up -d --no-build --wait --wait-timeout "${GAZEBO_START_TIMEOUT:-90}" "${service}"; then
+    printf '[gazebo] ERROR: %s did not become healthy.\n' "${service}" >&2
+    compose_runtime "$@" logs --no-color --tail=200 "${service}" >&2 || true
+    return 1
+  fi
+
+  if ! validate_runtime_logs "${service}"; then
+    compose_runtime --profile ui down --remove-orphans >/dev/null 2>&1 || true
+    return 1
+  fi
+}
+
 load_env_file
 
 mode="${1:-}"
@@ -710,18 +779,20 @@ docker image inspect "${image_ref}" >/dev/null || {
   exit 1
 }
 
+verify_built_image "${image_ref}"
+
 select_gpu_mode "${image_ref}"
 
 case "${mode}" in
   web)
     printf '[gazebo] Starting web mode...\n'
-    compose_runtime up -d --no-build gazebo
+    start_and_validate gazebo
     print_renderer_note gazebo
     printf '[gazebo] Ready: %s\n' "$(web_url)"
     ;;
   x11 | wayland)
     printf '[gazebo] Starting native UI mode: %s\n' "${mode}"
-    compose_runtime --profile ui up -d --no-build gazebo-ui
+    start_and_validate gazebo-ui --profile ui
     print_renderer_note gazebo-ui
     ;;
 esac
